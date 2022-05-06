@@ -44,23 +44,28 @@ def main():
     # save processed data
     emg_rms_df = pd.DataFrame()
     rep_df = pd.DataFrame()
+    glove_rms_df = pd.DataFrame()
     for trial in range(1, 10, 1):
         emg_rms, glove_rms, time_bin_ax = get_rms_for_trial(emg_df, glove_df, time_window, overlap, SAMP_FREQ, trial,
                                                             n_ch, index_stim=3)
-        # print(f"Overlap:{overlap}   emg_rms:{emg_rms.shape}   emg_rms_entire:{emg_rms_entire.shape}")  # #
+
+        print(f"Overlap:{overlap}   emg_rms:{emg_rms.shape}   glove_rms:{glove_rms.shape}")  # #
         # ignore/comment
         emg_rms = emg_rms.reshape(-1, n_ch)
         rep_col = np.repeat(trial, emg_rms.shape[0])
         emg_rms_df = pd.concat([emg_rms_df, pd.DataFrame(emg_rms)])
+
+        glove_rms_df = pd.concat([glove_rms_df, pd.DataFrame(glove_rms)])
         rep_df = pd.concat([rep_df, pd.DataFrame(rep_col)])
 
     emg_rms_df['repetition'] = rep_df[0]
+    emg_rms_df['glove'] = glove_rms_df[0]
 
     if not os.path.exists(DATA_PRE_DIR):
         os.makedirs(DATA_PRE_DIR)
-    emg_rms_df.to_hdf(os.path.join(DATA_PRE_DIR, f'emg_rms_win_{time_window}_overlap_{overlap}.h5'), key='df', mode='w')
-
-    plot_rms_for_trials(emg_df, glove_df, n_ch, overlap, time_window)  # plt.show()
+    emg_rms_df.to_hdf(os.path.join(DATA_PRE_DIR, f'emg_rms_win_{time_window}_overlap_{overlap}.h5'), key='df',
+                      mode='w')  # plot_rms_for_trials(emg_df, glove_df, n_ch, overlap, time_window)  # plt.show()  #
+    # plt.show()
 
 
 def plot_rms_for_trials(emg_df, glove_df, n_ch, overlap, time_window):
@@ -72,7 +77,7 @@ def plot_rms_for_trials(emg_df, glove_df, n_ch, overlap, time_window):
 
         for ch in range(n_ch):
             ax = fig.add_subplot(gs[ch])
-            ax.plot(time_bin_ax, emg_rms[ch, 0, :])
+            ax.plot(time_bin_ax, emg_rms[ch].T)
             ax.title.set_text(f'Ch {ch}')  # plt.title()
         ax = fig.add_subplot(gs[ch + 1])
         ax.plot(time_bin_ax, glove_rms)

@@ -89,11 +89,12 @@ def compute_rms_win_hop(index_emg, overlap, time_win_samples):
     if overlap > 0:
         n_win = int((index_emg.shape[0] - time_win_samples) / stride + 1)  # (overlap * index_emg.shape[0])
         hop_len = int(time_win_samples * (1 - overlap))
+        time_bin_ax = np.arange(0, n_win)
 
     else:
         n_win = int((index_emg.shape[0] / time_win_samples))
         hop_len = int(time_win_samples)  # time_bin_ax = np.arange(0, n_win)
-    time_bin_ax = np.arange(0, (n_win * time_win_samples) / SAMP_FREQ - (hop_len / SAMP_FREQ), hop_len / SAMP_FREQ)
+        time_bin_ax = np.arange(0, n_win)
 
     print(f"n_win:{n_win}, n_samples:{time_win_samples} n_hop:{hop_len}")
     return hop_len, n_win, time_bin_ax
