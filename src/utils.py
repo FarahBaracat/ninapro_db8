@@ -1,10 +1,11 @@
 import numpy as np
 import logging
 import pandas as pd
-from metadata import SAMP_FREQ, SUBJECT, COLOR_DICT, STIM_ENCODING
+from metadata import SAMP_FREQ, SUBJECT, COLOR_DICT, STIM_ENCODING, GLOVE_CH
 import matplotlib.pyplot as plt
 from src.ADM import digitalize_sigma_J
 from src.SubjectSpikeModel import *
+import librosa
 
 
 def construct_glove_df(mat):
@@ -50,6 +51,70 @@ def plot_spikes(X, reconst, time, dn_sp, up_sp, ch, rep, adm_vthr, stimulus, adm
     plt.show()
 
     # plt.savefig(RESULTDIR + 'spike_plots/' + ENG_KEY +'/' + str(RESAMPLE_FREQUENCY) + 'Hz/' + title +  # '.png')
+
+
+def get_rms_for_trial(emg_df, glove_df, time_window, overlap, samp_freq, trial, n_ch, index_stim=3):
+    time_win_samples = int(time_window * samp_freq)
+    mask = (emg_df['stimulus'] == index_stim) & (emg_df['rerepetition'] == trial)
+
+    index_glove = glove_df[mask].iloc[:, GLOVE_CH]
+    index_emg = emg_df[mask].iloc[:, :n_ch]
+    print(f"Single trial: {index_emg.shape}")
+    # compute number of rms windows
+    hop_len, n_win, time_bin_ax = compute_rms_win_hop(index_emg, overlap, time_win_samples)
+    # time_bin_ax = np.arange(0, )
+    # time_bin_ax = np.linspace(0, (n_win * time_win_samples) / samp_freq, num=n_win)
+    emg_rms = librosa.feature.rms(y=index_emg.T, frame_length=time_win_samples, center=False, hop_length=hop_len)
+    glove_rms = librosa.feature.rms(y=index_glove.T, frame_length=time_win_samples, center=False,
+                                    hop_length=hop_len).reshape(-1, 1)
+
+    return emg_rms, glove_rms, time_bin_ax
+
+
+def compute_rms_win_hop(index_emg, overlap, time_win_samples):
+    stride = time_win_samples * (1 - overlap)
+    # sim_duration_insec = SIM_DURATION / (1000 * ms)
+    # stride = sim_duration_insec * (1 - overlap)
+    # n_sub_trials = int((TRIAL_DURATION - sim_duration_insec) / stride + 1)
+    # sub_trial_start = np.arange(0, (TRIAL_DURATION - sim_duration_insec) + stride, stride)
+    # sub_trial_end = sub_trial_start + sim_duration_insec
+    #
+    # sub_trial_start, sub_trial_end = trim_incomplete_trials(sub_trial_start, sub_trial_end)
+    # logging.debug("starting:{}   len:{}".format(sub_trial_start, len(sub_trial_start)))
+    # logging.debug("end:{}   len:{}".format(sub_trial_end, len(sub_trial_end)))
+    # logging.debug("n_subtrials:{} len(sub_trial_start):{}".format(n_sub_trials, len(sub_trial_start)))
+    # assert len(sub_trial_start) == n_sub_trials
+    #
+
+    if overlap > 0:
+        n_win = int((index_emg.shape[0] - time_win_samples) / stride + 1)  # (overlap * index_emg.shape[0])
+        hop_len = int(time_win_samples * (1 - overlap))
+
+    else:
+        n_win = int((index_emg.shape[0] / time_win_samples))
+        hop_len = int(time_win_samples)  # time_bin_ax = np.arange(0, n_win)
+    time_bin_ax = np.arange(0, (n_win * time_win_samples) / SAMP_FREQ - (hop_len / SAMP_FREQ), hop_len / SAMP_FREQ)
+
+    print(f"n_win:{n_win}, n_samples:{time_win_samples} n_hop:{hop_len}")
+    return hop_len, n_win, time_bin_ax
+
+
+def get_rms_for_signal(emg_df, glove_df, time_window, overlap, samp_freq, n_ch, index_stim=3):
+    time_win_samples = int(time_window * samp_freq)
+    mask = (emg_df['stimulus'] == index_stim)
+    index_glove = glove_df[mask].iloc[:, GLOVE_CH]
+    index_emg = emg_df[mask].iloc[:, :n_ch]
+
+    # compute number of rms windows
+    hop_len, n_win, time_bin_ax = compute_rms_win_hop(index_emg, overlap, time_win_samples)
+
+    time_bin_ax = np.linspace(0, (n_win * time_win_samples) / samp_freq, num=n_win)
+    emg_rms = librosa.feature.rms(y=index_emg.T, frame_length=time_win_samples, center=False, hop_length=hop_len)
+
+    glove_rms = librosa.feature.rms(y=index_glove.T, frame_length=time_win_samples, center=False,
+                                    hop_length=hop_len).reshape(-1, 1)
+
+    return emg_rms, glove_rms, time_bin_ax
 
 
 def encode_into_spikes(emg_df, n_ch, n_stim, v_thr, t_ref, adm_dt):
