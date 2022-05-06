@@ -9,12 +9,14 @@ from src.SubjectSpikeModel import *
 
 def construct_glove_df(mat):
     glove_df = pd.DataFrame(mat['glove'])
+
     return glove_df
 
 
 def construct_emg_df(mat, rec_time):
     emg_df = pd.DataFrame(mat['emg'])
     emg_df['time'] = rec_time
+    emg_df['stimulus'] = mat['stimulus']
     emg_df['restimulus'] = mat['restimulus']
     emg_df['rerepetition'] = mat['rerepetition']
     emg_df['trial'] = (emg_df['restimulus'] != emg_df['restimulus'].shift()).cumsum()
